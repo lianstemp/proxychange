@@ -1,64 +1,65 @@
-import aiohttp
-import asyncio
-import random
-import subprocess
-import sys
+import json
+import requests
+from seleniumwire import webdriver
 
-async def download_proxies(url):
+def fetch_proxies_from_url(url):
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                return await response.text()
-    except aiohttp.ClientError as e:
-        print(f"Failed to download proxies from {url}: {e}")
-        return ''
+        response = requests.get(url)
+        response.raise_for_status()
+        proxies = response.json()
+        return proxies
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to fetch proxies from URL: {e}")
+        return []
 
-def update_proxychains_conf(proxies):
-    conf_file = "/etc/proxychains.conf"
-    with open(conf_file, 'r') as file:
-        conf_content = file.read()
-
-    proxy_types = ['http', 'socks4', 'socks5']
-
-    for proxy_type in proxy_types:
-        conf_content = '\n'.join(line for line in conf_content.split('\n') if not line.strip().startswith((f'{proxy_type}\t')))
-        if proxies[proxy_type]:
-            random.shuffle(proxies[proxy_type])
-            for proxy in proxies[proxy_type]:
-                ip, port = proxy.split(':')
-                conf_content += f"\n{proxy_type}\t{ip}\t{port}"
-
-    with open(conf_file, 'w') as file:
-        file.write(conf_content)
-
-def run_proxychains_command(command):
-    proxychains_command = f"proxychains {command}"
+def test_proxy(proxy_ip, proxy_port):
     try:
-        subprocess.run(proxychains_command, shell=True, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error running proxychains: {e}")
-        sys.exit(1)
+        # Mengatur proxy untuk pengujian
+        test_options = webdriver.FirefoxOptions()
+        test_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
 
-async def main():
-    if len(sys.argv) < 2:
-        print("Usage: python script_name.py 'your_command_here'")
-        sys.exit(1)
+        # Menginisialisasi peramban Firefox untuk pengujian proxy
+        test_driver = webdriver.Firefox(seleniumwire_options={'proxy': {
+            'http': f'http://{proxy_ip}:{proxy_port}',
+            'https': f'https://{proxy_ip}:{proxy_port}',
+            'no_proxy': 'localhost,127.0.0.1'  # Bypass the proxy for local addresses
+        }}, options=test_options)
 
-    proxy_urls = {
-        'http': "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all",
-        'socks4': "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=10000&country=all",
-        'socks5': "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks5&timeout=10000&country=all"
-    }
+        # Pengujian proxy dengan membuka Google
+        test_driver.get('https://www.google.com')
 
-    proxies = {}
-    for proxy_type, url in proxy_urls.items():
-        proxies[proxy_type] = (await download_proxies(url)).strip().split('\n')
-
-    update_proxychains_conf(proxies)
-
-    command_to_run = " ".join(sys.argv[1:])
-    await run_proxychains_command(command_to_run)
+        # Jika berhasil membuka Google, proxy aktif
+        print(f"Proxy {proxy_ip}:{proxy_port} is active.")
+        return test_driver
+    except:
+        # Jika terjadi error, proxy tidak aktif
+        print(f"Proxy {proxy_ip}:{proxy_port} is inactive.")
+        return None
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    proxy_url = "https://proxy.farhanaulianda.tech"
+
+    # Membaca daftar proxy dari URL
+    proxies = fetch_proxies_from_url(proxy_url)
+
+    if not proxies:
+        print("Failed to fetch proxies from the URL. Exiting...")
+    else:
+        active_driver = None
+
+        for proxy in proxies:
+            proxy_ip = proxy['ip']
+            proxy_port = proxy['port']
+
+            if not active_driver:
+                active_driver = test_proxy(proxy_ip, proxy_port)
+                if active_driver:
+                    break  # Stop searching for proxies if an active one is found
+
+        if active_driver:
+            # Buka URL yang diinginkan, contoh: 'https://www.google.com'
+            active_driver.get('https://www.google.com')
+
+            # Biarkan jendela Firefox terbuka selama beberapa saat
+            input("Tekan Enter untuk menutup Firefox...")
+            active_driver.quit()

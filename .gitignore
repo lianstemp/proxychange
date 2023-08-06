@@ -1,1 +1,2 @@
-/proxychains4.conf
+venv
+geckodriver.log
