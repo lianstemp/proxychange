@@ -1,4 +1,3 @@
-import json
 import requests
 from seleniumwire import webdriver
 
@@ -26,7 +25,7 @@ def test_proxy(proxy_ip, proxy_port):
         }}, options=test_options)
 
         # Pengujian proxy dengan membuka Google
-        test_driver.get('https://www.google.com')
+        test_driver.get('http://ipecho.net/plain')
 
         # Jika berhasil membuka Google, proxy aktif
         print(f"Proxy {proxy_ip}:{proxy_port} is active.")
@@ -54,11 +53,11 @@ if __name__ == "__main__":
             if not active_driver:
                 active_driver = test_proxy(proxy_ip, proxy_port)
                 if active_driver:
-                    break  # Stop searching for proxies if an active one is found
+                    break  # Berhenti mencari proxy yang aktif 
 
         if active_driver:
-            # Buka URL yang diinginkan, contoh: 'https://www.google.com'
-            active_driver.get('https://www.google.com')
+            # Buka url pengujian IP
+            active_driver.get('http://ipecho.net/plain')
 
             # Biarkan jendela Firefox terbuka selama beberapa saat
             input("Tekan Enter untuk menutup Firefox...")
