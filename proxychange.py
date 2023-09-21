@@ -5,7 +5,7 @@ import threading
 import random
 import time
 
-PROXY_URL = "https://proxy.farhanaulianda.tech"
+PROXY_URL = "https://proxylist.farhanaulianda.tech"
 PROXY_TEST_URL = "https://www.example.com"
 MAX_REQUESTS_PER_PROXY = 5
 PROXY_TIMEOUT = 10
